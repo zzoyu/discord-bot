@@ -1,0 +1,22 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "ae-yujin",
+  "main": "index.js",
+  "scripts": {
+    "serve": "node index.js"
+  },
+  "author": "Yujin Cho <zzoyu@hotmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.2.1",
+    "discord.js": "^14.7.1",
+    "dotenv": "^16.0.3",
+    "iconv-lite": "^0.6.3",
+    "jsdom": "^20.0.3",
+    "x-ray": "^2.3.4"
+  },
+  "devDependencies": {
+    "eslint": "^8.30.0"
+  }
+}
