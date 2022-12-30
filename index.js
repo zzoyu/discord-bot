@@ -28,6 +28,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
+  // askMagicConch();
 });
 
 client.login(token);
@@ -140,6 +141,45 @@ const makeSteamSaleMessage = async () => {
   return exampleEmbed;
 };
 
+const askMagicConch = async (prompt) => {
+  const response = await axios.post(
+    process.env.MAGIC_CONCH_URL,
+    {
+      prompt,
+      max_tokens: 200,
+      // n: 3,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "KakaoAK " + process.env.MAGIC_CONCH_TOKEN,
+      },
+    }
+  );
+  const answer = response?.data?.generations;
+  console.log("내 질문 :" + prompt);
+  console.log(answer);
+
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle("마법의 소라고동")
+    .setImage(
+      "https://static.wikia.nocookie.net/spongebob/images/9/93/Club_SpongeBob_062.png/revision/latest/scale-to-width-down/1000?cb=20200208095623"
+    )
+    .setDescription("[koGPT]마법의 소라고동이 답변을 해주었습니다.")
+    .setTimestamp()
+    .addFields({
+      name: "질문",
+      value: prompt,
+    })
+    .addFields({
+      name: "답변",
+      value: `${answer[0].text}`,
+    });
+
+  return exampleEmbed;
+};
+
 const commands = [
   {
     data: new SlashCommandBuilder()
@@ -157,6 +197,30 @@ const commands = [
     async execute(interaction) {
       const embed = await makeSteamSaleMessage();
       await interaction.reply({ embeds: [embed] });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("소라고동")
+      .setDescription("마법의 소라고동에게 질문을 던집니다.")
+      .addStringOption((option) =>
+        option.setName("질문").setDescription("질문을 입력해주세요.")
+      ),
+    async execute(interaction) {
+      const prompt = interaction.options.getString("질문");
+      console.log(prompt);
+      if (!prompt) {
+        return interaction.reply({
+          content: "질문을 입력해주세요.",
+          ephemeral: true,
+        });
+      }
+
+      await interaction.deferReply();
+      // await interaction.followUp();
+
+      const embed = await askMagicConch(prompt);
+      await interaction.editReply({ embeds: [embed] });
     },
   },
 ];
