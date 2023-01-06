@@ -12,6 +12,7 @@ const {
   EmbedBuilder,
 } = require("discord.js");
 const dotenv = require("dotenv");
+const { Configuration, OpenAIApi } = require("openai");
 const { default: axios } = require("axios");
 
 const { JSDOM } = require("jsdom");
@@ -25,6 +26,10 @@ const PPOMPPU_BASE_URL = "https://www.ppomppu.co.kr/zboard/";
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const openai = new OpenAIApi(
+  new Configuration({ apiKey: process.env.OPENAI_API_KEY })
+);
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
@@ -142,6 +147,58 @@ const makeSteamSaleMessage = async () => {
 };
 
 const askMagicConch = async (prompt) => {
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/engines/code-davinci-002/completions",
+      {
+        prompt:
+          "I am a programming robot. the input is what I need to translate and implement as it describes. output is a code block with backtiks.\n\ninput : " +
+          prompt +
+          "\n\noutput : ",
+        max_tokens: 200,
+        temperature: 0.7,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        echo: false,
+      },
+      {
+        headers: {
+          "OpenAI-Organization": process.env.OPENAI_ORG_TOKEN,
+          Referer: "https://beta.openai.com/",
+          Authorization: "Bearer " + process.env.OPENAI_AUTH_TOKEN,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log(response.data.choices[0].text);
+    if (response?.data === undefined) return;
+    const exampleEmbed = new EmbedBuilder()
+      .setColor(0x0099ff)
+      .setTitle("마법의 소라고동")
+      .setImage(
+        "https://static.wikia.nocookie.net/spongebob/images/9/93/Club_SpongeBob_062.png/revision/latest/scale-to-width-down/1000?cb=20200208095623"
+      )
+      .setDescription("[OpenAI Codex]마법의 소라고동이 답변을 해주었습니다.")
+      .setTimestamp()
+      .addFields({
+        name: "질문",
+        value: prompt,
+      })
+      .addFields({
+        name: "답변",
+        value: `${response.data.choices[0].text.replace("\n\n", "")}`,
+      });
+
+    return exampleEmbed;
+  } catch (error) {
+    console.error(error);
+    return "에러가 발생했습니다.";
+  }
+};
+
+const askKakaoMagicConch = async (prompt) => {
   const response = await axios.post(
     process.env.MAGIC_CONCH_URL,
     {
@@ -202,7 +259,7 @@ const commands = [
   {
     data: new SlashCommandBuilder()
       .setName("소라고동")
-      .setDescription("마법의 소라고동에게 질문을 던집니다.")
+      .setDescription("[OpenAI]마법의 소라고동에게 질문을 던집니다.")
       .addStringOption((option) =>
         option.setName("질문").setDescription("질문을 입력해주세요.")
       ),
@@ -220,6 +277,30 @@ const commands = [
       // await interaction.followUp();
 
       const embed = await askMagicConch(prompt);
+      await interaction.editReply({ embeds: [embed] });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("k-소라고동")
+      .setDescription("[KoGPT]마법의 소라고동에게 질문을 던집니다.")
+      .addStringOption((option) =>
+        option.setName("질문").setDescription("질문을 입력해주세요.")
+      ),
+    async execute(interaction) {
+      const prompt = interaction.options.getString("질문");
+      console.log(prompt);
+      if (!prompt) {
+        return interaction.reply({
+          content: "질문을 입력해주세요.",
+          ephemeral: true,
+        });
+      }
+
+      await interaction.deferReply();
+      // await interaction.followUp();
+
+      const embed = await askKakaoMagicConch(prompt);
       await interaction.editReply({ embeds: [embed] });
     },
   },
