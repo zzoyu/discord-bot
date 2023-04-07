@@ -198,13 +198,44 @@ const askMagicConch = async (prompt) => {
   }
 };
 
-const askKakaoMagicConch = async (prompt) => {
+const yujinWantsKeyboard = async ({ image, title, price, url }) => {
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle("유진이는 과연 키보드를 살 수 있을까?")
+    .setImage(image)
+    .setURL(url)
+    .setDescription("새로운 키보드 글을 발견했습니다!")
+    .setTimestamp()
+    .addFields({
+      name: "제목",
+      value: title,
+    })
+    .addFields({
+      name: "가격",
+      value: price,
+    });
+
+  return exampleEmbed;
+};
+
+const askKakaoMagicConch = async (message) => {
+  const prompt = `이하는 채팅 AI의 대화 로그 예시입니다. 다음에 이어질 내용을 적어주세요.\n
+  예시)\n
+  사용자: 안녕\n
+  채팅 AI: 안녕하세요.\n
+  사용자: 오늘 날씨는 어때?\n
+  채팅 AI: 오늘 날씨는 맑습니다.\n
+  \n
+  질문)\n
+  사용자: ${message}\n
+  채팅 AI: `;
+
   const response = await axios.post(
     process.env.MAGIC_CONCH_URL,
     {
       prompt,
-      max_tokens: 200,
-      // n: 3,
+      max_tokens: 100,
+      n: 3,
     },
     {
       headers: {
@@ -214,7 +245,7 @@ const askKakaoMagicConch = async (prompt) => {
     }
   );
   const answer = response?.data?.generations;
-  console.log("내 질문 :" + prompt);
+  console.log("내 질문 :" + message);
   console.log(answer);
 
   const exampleEmbed = new EmbedBuilder()
@@ -302,6 +333,34 @@ const commands = [
 
       const embed = await askKakaoMagicConch(prompt);
       await interaction.editReply({ embeds: [embed] });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("존버")
+      .setDescription("유진이는 과연 키보드를 살 수 있을까요?")
+      .addStringOption((option) =>
+        option.setName("키워드").setDescription("존버할 물건을 입력해주세요.")
+      ),
+    async execute(interaction) {
+      const keyword = interaction.options.getString("키워드");
+      // console.log(keyword, interaction);
+      if (!keyword) {
+        return interaction.reply({
+          content: "키워드를 입력해주세요.",
+          ephemeral: true,
+        });
+      }
+
+      return interaction.reply({
+        content: `키워드를 등록했습니다. ${interaction.user}(이)가 ${keyword}을(를) 존버합니다. 모두 응원해주세요!`,
+      });
+
+      // await interaction.deferReply();
+      // await interaction.followUp();
+
+      // const embed = await askKakaoMagicConch(prompt);
+      // await interaction.editReply({ embeds: [embed] });
     },
   },
 ];
