@@ -10,6 +10,10 @@ const {
   Routes,
   Collection,
   EmbedBuilder,
+  CommandInteraction,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
 } = require("discord.js");
 const dotenv = require("dotenv");
 const { Configuration, OpenAIApi } = require("openai");
@@ -19,6 +23,8 @@ const { JSDOM } = require("jsdom");
 const iconv = require("iconv-lite");
 
 dotenv.config();
+
+const partyList = {};
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
@@ -107,6 +113,18 @@ const makePpomppuTopMessage = async () => {
     });
   }
 
+  return exampleEmbed;
+};
+
+const makePartyMessage = (interaction) => {
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle(
+      `${bold(interaction.user.username)} 님이 ${bold(
+        interaction.options.getString("목표")
+      )}에 대한 파티원을 모집합니다.`
+    )
+    .setTimestamp();
   return exampleEmbed;
 };
 
@@ -280,6 +298,81 @@ const commands = [
   },
   {
     data: new SlashCommandBuilder()
+      .setName("파티모집")
+      .setDescription("파티원을 모집합니다.")
+      .addStringOption((option) =>
+        option.setName("목표").setDescription("모집할 파티를 적어주세요.")
+      ),
+    async execute(interaction) {
+      console.log(interaction);
+      const embed = makePartyMessage(interaction);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("join")
+          .setLabel("파티 참여")
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId("thisisnotabutton")
+          .setDisabled(true)
+          .setLabel("1명")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const response = await interaction.reply({
+        embeds: [embed],
+        components: [row],
+      });
+
+      console.log(response);
+      partyList[response.id] = {
+        title: interaction.options.getString("목표"),
+        userIdList: [interaction.user.id],
+      };
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("파티완료")
+      .setDescription("파티원 모집을 종료합니다."),
+    async execute(interaction) {
+      let isDeleted = false;
+      const copyList = [];
+      let title = "";
+
+      for (const [key, value] of Object.entries(partyList)) {
+        if (value.userIdList[0] === interaction.user.id) {
+          title = value.title;
+          copyList.push(...value.userIdList);
+          delete partyList[key];
+          isDeleted = true;
+        }
+      }
+
+      if (!isDeleted) {
+        await interaction.reply({
+          content: "파티를 모집한 적이 없습니다.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle(
+          `${title}에 대한 파티원 모집이 종료되었습니다. (${copyList.length}명)`
+        )
+        // mention every users in the list
+        .setDescription(`${copyList.map((id) => `<@${id}>`).join(" ")}`)
+        .setTimestamp();
+
+      return await interaction.reply({
+        embeds: [embed],
+      });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
       .setName("스팀")
       .setDescription("오늘의 인기 스팀 할인 정보를 확인합니다."),
     async execute(interaction) {
@@ -376,19 +469,82 @@ rest.put(Routes.applicationCommands(clientId), {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isCommand()) return;
+  switch (true) {
+    case interaction.isChatInputCommand():
+      {
+        const command = client.commands.get(interaction.commandName);
 
-  const command = client.commands.get(interaction.commandName);
+        if (!command) return;
 
-  if (!command) return;
+        try {
+          await command.execute(interaction);
+        } catch (error) {
+          console.error(error);
+          await interaction.reply({
+            content: "There was an error while executing this command!",
+            ephemeral: true,
+          });
+        }
+      }
+      break;
 
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({
-      content: "There was an error while executing this command!",
-      ephemeral: true,
-    });
+    case interaction.isButton():
+      console.log(partyList);
+      if (interaction.customId === "join") {
+        if (partyList[interaction.message.interaction.id] === undefined) {
+          return interaction.reply({
+            content: "더 이상 참여할 수 없는 파티입니다.",
+            ephemeral: true,
+          });
+        }
+
+        if (
+          partyList[interaction.message.interaction.id]?.userIdList?.includes?.(
+            interaction.user.id
+          )
+        ) {
+          return interaction.reply({
+            content: "이미 참여했습니다.",
+            ephemeral: true,
+          });
+        }
+
+        partyList[interaction.message.interaction.id]?.userIdList?.push?.(
+          interaction.user.id
+        );
+        partyList[interaction.message.interaction.id]?.userIdList?.push?.(
+          interaction.user.id
+        );
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("join")
+            .setLabel("파티 참여")
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId("thisisnotabutton")
+            .setDisabled(true)
+            .setLabel(
+              `${
+                partyList[interaction.message.interaction.id]?.userIdList.length
+              }명`
+            )
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.update({
+          components: [row],
+        });
+
+        await interaction.followUp({
+          content: `${interaction.user}님이 파티에 참여했습니다. 총 ${
+            partyList[interaction.message.interaction.id]?.userIdList.length
+          }명이 참여중입니다.`,
+          // ephemeral: true,
+        });
+      }
+      break;
+    default:
+      break;
   }
 });
