@@ -11,6 +11,8 @@ Node.js 기반의 간단한 디스코드 봇입니다.
 
 ## /스팀
 
+<img src="images/steam.png" width="350" alt="steam" />
+
 인기 스팀 할인 게임들을 표시합니다. 외부 사이트의 API를 우회하여 호출하였습니다.
 
 1. 특정 사이트의 인기 게임 목록 API를 호출합니다.
@@ -18,6 +20,8 @@ Node.js 기반의 간단한 디스코드 봇입니다.
 3. 해당 정보를 embed 형태로 표시합니다.
 
 ## /뽐뿌
+
+<img src="images/ppomppu.png" width="350" alt="ppomppu" />
 
 최근 뽐뿌 사이트에서 인기 게시글 중 첫 페이지의 12시간 내 항목들만 크롤링하여 표시합니다.
 
@@ -29,11 +33,17 @@ Node.js 기반의 간단한 디스코드 봇입니다.
 
 ## /파티모집 "명령어", /파티완료
 
+<img src="images/party.png" width="350" alt="party" />
+
 `/파티모집 명령어`로 특정 주제에 대해 참여자를 리스트업 할 수 있습니다. `/파티완료`는 사용자가 시작한 모집을 순차적으로 완료 처리 합니다. 중복 참여는 불가하며, 모집이 완료되면 해당 모집은 더 이상 참여할 수 없는 상태가 됩니다.
 
 ## /소라고동 "message", /k-소라고동 "message"
 
-KoGPT, OpenAI Codex 모델의 API와 연결하여 스폰지밥의 마법의 소라고동을 패러디하였습니다. 좀 더 프롬프트 튜닝이 필요할 것으로 보입니다.
+<img src="images/codex.png" width="300" alt="codex" />
+
+<img src="images/koGPT.png" width="300"  alt="koGPT" />
+
+KoGPT, OpenAI Codex 모델의 API와 연결하여 스폰지밥의 마법의 소라고동을 패러디하였습니다. 답변이 엉망이라, 좀 더 프롬프트 튜닝이 필요할 것으로 보입니다.
 
 1. 옵션으로 받는 메시지는 prompt값이 될 부분입니다.
 2. 공개된 API로 해당 프롬프트를 포함한 POST 요청을 보냅니다.
