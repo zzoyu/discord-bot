@@ -346,6 +346,7 @@ const commands = [
           copyList.push(...value.userIdList);
           delete partyList[key];
           isDeleted = true;
+          break;
         }
       }
 
