@@ -512,9 +512,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         partyList[interaction.message.interaction.id]?.userIdList?.push?.(
           interaction.user.id
         );
-        partyList[interaction.message.interaction.id]?.userIdList?.push?.(
-          interaction.user.id
-        );
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
