@@ -358,17 +358,85 @@ const commands = [
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x0099ff)
-        .setTitle(
-          `${title}에 대한 파티원 모집이 종료되었습니다. (${copyList.length}명)`
-        )
-        // mention every users in the list
-        .setDescription(`${copyList.map((id) => `<@${id}>`).join(" ")}`)
-        .setTimestamp();
+      const embed =
+        copyList.length > 1
+          ? new EmbedBuilder()
+              .setColor(0x0099ff)
+              .setTitle(
+                `${title}에 대한 파티원 모집이 종료되었습니다. (${copyList.length}명)`
+              )
+              // mention every users in the list
+              .setDescription(`${copyList.map((id) => `<@${id}>`).join(" ")}`)
+              .setTimestamp()
+          : new EmbedBuilder()
+              .setColor(0x0099ff)
+              .setTitle(`${title}에 대한 파티원 모집이 종료되었습니다.`)
+              .setImage("https://pbs.twimg.com/media/DfK2m9TU0AMj_S1.jpg")
+              .setTimestamp();
 
       return await interaction.reply({
         embeds: [embed],
+      });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("사다리")
+      .setDescription("사다리타기 입니다.")
+      .addIntegerOption((option) =>
+        option.setName("당첨수").setDescription("당첨 인원을 적어주세요.")
+      ),
+    // .addSubcommand((subcommand) =>
+    //   subcommand
+    //     .setName("추첨")
+    //     .setDescription("사다리타기를 시작합니다.")
+    //     .addUserOption((option) =>
+    //       option.setName("참가자").setDescription("The user")
+    //     )
+    // )
+    async execute(interaction) {
+      console.log(interaction);
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle("죽음의 사다리타기")
+        .setFields([
+          {
+            name: "참가자",
+            value: interaction.options.getString("목록"),
+          },
+          {
+            name: "당첨 인원",
+            value: interaction.options.getInteger("당첨 인원"),
+          },
+        ]);
+
+      const response = await interaction.reply({
+        embeds: [embed],
+      });
+
+      response.followUp(
+        "사다리타기를 시작합니다. (10초 후에 결과가 나옵니다.)"
+      );
+
+      const list = interaction.options.getString("목록").split(" ");
+      const winnerCount = interaction.options.getInteger("당첨수");
+
+      const winnerList = [];
+      for (let i = 0; i < winnerCount; i++) {
+        const winner = list[Math.floor(Math.random() * list.length)];
+        winnerList.push(winner);
+        list.splice(list.indexOf(winner), 1);
+      }
+
+      const winnerEmbed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle("당첨자 발표")
+        .setDescription(
+          `${winnerList.map((id) => `<@${id}>`).join(" ")} 축하합니다!`
+        );
+
+      await interaction.followUp({
+        embeds: [winnerEmbed],
       });
     },
   },
