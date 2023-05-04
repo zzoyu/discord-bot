@@ -128,6 +128,91 @@ const makePartyMessage = (interaction) => {
   return exampleEmbed;
 };
 
+const makeGroupBuyingMessage = async (interaction) => {
+  const url = interaction.options.getString("링크");
+  let crawledData = {};
+  console.log(url);
+  try {
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: {
+        Host: "www.coupang.com",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/113.0",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        Cookie:
+          "PCID=16677867053494831435414; MARKETID=16677867053494831435414; _abck=A39886E5A1213DFCE37CC2C3C4034EBB~0~YAAQDXpGaDbZ3kuEAQAAXKXVTwilGboVn/914ADZcQIOMxffYB49bucsW++bhNLrPkBVih5VAgYYxUa2jsUpTdqtEaI/NKz8pFA6pkLjqik471WkRyp3tkivTN1VudvA82zGro5VaTkkV9/jUic0p9deBY3pFIcY2NY2Vwmerh2Z3J4eldWxPwTPrPo5In+Dbq2mpkcWg/YY91ByCTsBgoNwnW1vtfAvjmBwVRKq/mkRui4mU7fwaxahoZ7q8/SRO16vkGFtZnzwpCwYyOxBJJwsEwWz4pP9P1wEpZTihULEeWvCqPDz09scC3plCJiLT/zwd36CZsqFMbDXt6Q1nDJ8txRjvQ4IjJTAwLNjntWfuDUS1bp8oLTsZchvIuIDM3DBbs3gJdoXVdBdK1D25/Ze6hhWuNPQWk8=~-1~-1~-1",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Sec-GPC": "1",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+      },
+
+      responseType: "arraybuffer",
+      responseEncoding: "binary",
+    });
+    console.log(response);
+    const buffer = new Buffer.from(response.data, "binary");
+
+    const document = new JSDOM(iconv.decode(buffer, "utf-8").toString()).window
+      .document;
+
+    crawledData = Array.from(document.head.getElementsByTagName("meta"))
+      .filter((meta) => meta.getAttribute("property"))
+      .reduce((acc, cur) => {
+        const key = cur.getAttribute("property").split(":")[1];
+        if (key) {
+          acc[key] = cur.getAttribute("content");
+        }
+        return acc;
+      }, {});
+
+    crawledData.price = parseInt(
+      String(
+        document.getElementsByClassName("total-price")[0].children[0]
+          .textContent
+      ).replace(/,/g, "")
+    );
+  } catch (error) {
+    console.error({ ...error });
+    return { embed: new EmbedBuilder().setTitle("잘못된 링크입니다.") };
+  }
+
+  console.log(crawledData);
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle(
+      `${bold(interaction.user.username)} 님이 ${bold(
+        crawledData.title
+      )}에 대한 공동구매를 진행합니다.`
+    )
+    .setFields([
+      {
+        name: "가격",
+        value: crawledData.price.toLocaleString("ko") + "원",
+      },
+      {
+        name: "링크",
+        value: crawledData.url,
+      },
+    ])
+    .setThumbnail(
+      crawledData.image.startsWith("//")
+        ? "https:" + crawledData.image
+        : crawledData.image
+    )
+    .setTimestamp();
+  return { embed: exampleEmbed, data: crawledData };
+};
+
 const makeSteamSaleMessage = async () => {
   // console.log(channel);
 
@@ -333,16 +418,59 @@ const commands = [
   },
   {
     data: new SlashCommandBuilder()
+      .setName("공동구매")
+      .setDescription("공동구매 멤버를 모집합니다.")
+      .addStringOption((option) =>
+        option.setName("링크").setDescription("상품 링크를 붙여넣어 주세요.")
+      ),
+    async execute(interaction) {
+      console.log(interaction);
+      const response = await interaction.deferReply();
+      const { embed, data } = await makeGroupBuyingMessage(interaction);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("join")
+          .setLabel("공구 참여")
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId("thisisnotabutton")
+          .setDisabled(true)
+          .setLabel("1명")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await interaction.editReply({
+        embeds: [embed],
+        components: [row],
+      });
+
+      if (!data.title) return;
+      console.log(response);
+      partyList[response.id] = {
+        title: data.title,
+        type: "공동구매",
+        content: data,
+        userIdList: [interaction.user.id],
+      };
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
       .setName("파티완료")
       .setDescription("파티원 모집을 종료합니다."),
     async execute(interaction) {
       let isDeleted = false;
       const copyList = [];
       let title = "";
+      let type = "";
+      let content = {};
 
       for (const [key, value] of Object.entries(partyList)) {
         if (value.userIdList[0] === interaction.user.id) {
           title = value.title;
+          type = value?.type;
+          content = value?.content;
           copyList.push(...value.userIdList);
           delete partyList[key];
           isDeleted = true;
@@ -358,21 +486,55 @@ const commands = [
         return;
       }
 
-      const embed =
-        copyList.length > 1
-          ? new EmbedBuilder()
+      let embed = null;
+      if (copyList.length === 1) {
+        embed = new EmbedBuilder()
+          .setColor(0x0099ff)
+          .setTitle(`${title}에 대한 파티원 모집이 종료되었습니다.`)
+          .setImage("https://pbs.twimg.com/media/DfK2m9TU0AMj_S1.jpg")
+          .setTimestamp();
+      } else {
+        switch (type) {
+          case "공동구매":
+            embed = new EmbedBuilder()
+              .setColor(0x0099ff)
+              .setTitle(
+                `${title}에 대한 파티원 모집이 종료되었습니다. (${copyList.length}명)`
+              )
+              .setDescription("멤버들은 파티장에게 1/n 가격을 지불해주세요.")
+              .setFields(
+                {
+                  name: "파티장",
+                  value: `<@${copyList[0]}>`,
+                },
+                {
+                  name: "파티원",
+                  value: `${copyList
+                    .slice(1)
+                    .map((id) => `<@${id}>`)
+                    .join(" ")}`,
+                },
+                {
+                  name: "예상되는 1/n 가격",
+                  value: `${Math.ceil(
+                    content.price / copyList.length
+                  ).toLocaleString("kr")}원`,
+                }
+              )
+              .setTimestamp();
+            break;
+          default:
+            embed = new EmbedBuilder()
               .setColor(0x0099ff)
               .setTitle(
                 `${title}에 대한 파티원 모집이 종료되었습니다. (${copyList.length}명)`
               )
               // mention every users in the list
               .setDescription(`${copyList.map((id) => `<@${id}>`).join(" ")}`)
-              .setTimestamp()
-          : new EmbedBuilder()
-              .setColor(0x0099ff)
-              .setTitle(`${title}에 대한 파티원 모집이 종료되었습니다.`)
-              .setImage("https://pbs.twimg.com/media/DfK2m9TU0AMj_S1.jpg")
               .setTimestamp();
+            break;
+        }
+      }
 
       return await interaction.reply({
         embeds: [embed],
