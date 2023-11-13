@@ -250,40 +250,26 @@ const makeSteamSaleMessage = async () => {
 };
 
 const askMagicConch = async (prompt) => {
+  const answers = [
+    "응.",
+    "아니.",
+    "그럼.",
+    "그렇지.",
+    "그렇지 않지.",
+    "안 돼",
+    "그래",
+    "절 대 안 돼",
+  ];
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/engines/code-davinci-002/completions",
-      {
-        prompt:
-          "I am a programming robot. the input is what I need to translate and implement as it describes. output is a code block with backtiks.\n\ninput : " +
-          prompt +
-          "\n\noutput : ",
-        max_tokens: 200,
-        temperature: 0.7,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0,
-        echo: false,
-      },
-      {
-        headers: {
-          "OpenAI-Organization": process.env.OPENAI_ORG_TOKEN,
-          Referer: "https://beta.openai.com/",
-          Authorization: "Bearer " + process.env.OPENAI_AUTH_TOKEN,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log(response.data.choices[0].text);
-    if (response?.data === undefined) return;
+    // eslint-disable-next-line no-empty-function
+    await setTimeout(() => {}, 3000);
     const exampleEmbed = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle("마법의 소라고동")
       .setImage(
         "https://static.wikia.nocookie.net/spongebob/images/9/93/Club_SpongeBob_062.png/revision/latest/scale-to-width-down/1000?cb=20200208095623"
       )
-      .setDescription("[OpenAI Codex]마법의 소라고동이 답변을 해주었습니다.")
+      .setDescription("마법의 소라고동이 답변을 해주었습니다.")
       .setTimestamp()
       .addFields({
         name: "질문",
@@ -291,7 +277,7 @@ const askMagicConch = async (prompt) => {
       })
       .addFields({
         name: "답변",
-        value: `${response.data.choices[0].text.replace("\n\n", "")}`,
+        value: `${answers[Math.floor(Math.random() * answers.length)]}`,
       });
 
     return exampleEmbed;
@@ -614,7 +600,7 @@ const commands = [
   {
     data: new SlashCommandBuilder()
       .setName("소라고동")
-      .setDescription("[OpenAI]마법의 소라고동에게 질문을 던집니다.")
+      .setDescription("마법의 소라고동에게 질문을 던집니다.")
       .addStringOption((option) =>
         option.setName("질문").setDescription("질문을 입력해주세요.")
       ),
@@ -635,58 +621,58 @@ const commands = [
       await interaction.editReply({ embeds: [embed] });
     },
   },
-  {
-    data: new SlashCommandBuilder()
-      .setName("k-소라고동")
-      .setDescription("[KoGPT]마법의 소라고동에게 질문을 던집니다.")
-      .addStringOption((option) =>
-        option.setName("질문").setDescription("질문을 입력해주세요.")
-      ),
-    async execute(interaction) {
-      const prompt = interaction.options.getString("질문");
-      console.log(prompt);
-      if (!prompt) {
-        return interaction.reply({
-          content: "질문을 입력해주세요.",
-          ephemeral: true,
-        });
-      }
+  // {
+  //   data: new SlashCommandBuilder()
+  //     .setName("k-소라고동")
+  //     .setDescription("[KoGPT]마법의 소라고동에게 질문을 던집니다.")
+  //     .addStringOption((option) =>
+  //       option.setName("질문").setDescription("질문을 입력해주세요.")
+  //     ),
+  //   async execute(interaction) {
+  //     const prompt = interaction.options.getString("질문");
+  //     console.log(prompt);
+  //     if (!prompt) {
+  //       return interaction.reply({
+  //         content: "질문을 입력해주세요.",
+  //         ephemeral: true,
+  //       });
+  //     }
 
-      await interaction.deferReply();
-      // await interaction.followUp();
+  //     await interaction.deferReply();
+  //     // await interaction.followUp();
 
-      const embed = await askKakaoMagicConch(prompt);
-      await interaction.editReply({ embeds: [embed] });
-    },
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName("존버")
-      .setDescription("유진이는 과연 키보드를 살 수 있을까요?")
-      .addStringOption((option) =>
-        option.setName("키워드").setDescription("존버할 물건을 입력해주세요.")
-      ),
-    async execute(interaction) {
-      const keyword = interaction.options.getString("키워드");
-      // console.log(keyword, interaction);
-      if (!keyword) {
-        return interaction.reply({
-          content: "키워드를 입력해주세요.",
-          ephemeral: true,
-        });
-      }
+  //     const embed = await askKakaoMagicConch(prompt);
+  //     await interaction.editReply({ embeds: [embed] });
+  //   },
+  // },
+  // {
+  //   data: new SlashCommandBuilder()
+  //     .setName("존버")
+  //     .setDescription("유진이는 과연 키보드를 살 수 있을까요?")
+  //     .addStringOption((option) =>
+  //       option.setName("키워드").setDescription("존버할 물건을 입력해주세요.")
+  //     ),
+  //   async execute(interaction) {
+  //     const keyword = interaction.options.getString("키워드");
+  //     // console.log(keyword, interaction);
+  //     if (!keyword) {
+  //       return interaction.reply({
+  //         content: "키워드를 입력해주세요.",
+  //         ephemeral: true,
+  //       });
+  //     }
 
-      return interaction.reply({
-        content: `키워드를 등록했습니다. ${interaction.user}(이)가 ${keyword}을(를) 존버합니다. 모두 응원해주세요!`,
-      });
+  //     return interaction.reply({
+  //       content: `키워드를 등록했습니다. ${interaction.user}(이)가 ${keyword}을(를) 존버합니다. 모두 응원해주세요!`,
+  //     });
 
-      // await interaction.deferReply();
-      // await interaction.followUp();
+  //     // await interaction.deferReply();
+  //     // await interaction.followUp();
 
-      // const embed = await askKakaoMagicConch(prompt);
-      // await interaction.editReply({ embeds: [embed] });
-    },
-  },
+  //     // const embed = await askKakaoMagicConch(prompt);
+  //     // await interaction.editReply({ embeds: [embed] });
+  //   },
+  // },
 ];
 
 client.commands = new Collection();

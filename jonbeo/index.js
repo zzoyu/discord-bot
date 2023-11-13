@@ -14,7 +14,7 @@ export class JonBeoManager {
     if (!JonBeoManager.instance) {
       JonBeoManager.instance = new JonBeoManager();
     }
-    return JonBeoManager.#instance;
+    return JonBeoManager.instance;
   }
 
   registerKeyword(keyword, channel) {
