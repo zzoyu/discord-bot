@@ -131,7 +131,9 @@ const makePartyMessage = (interaction) => {
 const makeGroupBuyingMessage = async (interaction) => {
   const url = interaction.options.getString("링크");
   let crawledData = {};
-  console.log(url);
+  if (url.includes("coupang") === false) {
+    return { embed: new EmbedBuilder().setTitle("잘못된 링크입니다.") };
+  }
   try {
     const response = await axios.get(url, {
       timeout: 5000,
