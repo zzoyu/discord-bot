@@ -725,6 +725,24 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
 
   if (
     response.embeds?.[0].data?.title?.includes("도박") &&
+    response.embeds?.[0].data?.title?.includes("성공")
+  ) {
+    // extract number from "승리 확률 : 29%\n\n결과 : + 5,000₩" in the response.embeds?.[0].data?.description
+    const result = response.embeds?.[0].data?.description?.match(/\d+/g);
+    if (result === null) return;
+    const wonMoney = Number(result[1]);
+    const percentage = Number(result[0]);
+
+    if (percentage < 40) {
+      await response.reply({
+        embeds: [
+          // add a new embed to the message that celebrates the user's win
+          new EmbedBuilder().setTitle("🎉 이걸 성공하네!").setColor(0x00ff00),
+        ],
+      });
+    }
+  } else if (
+    response.embeds?.[0].data?.title?.includes("도박") &&
     response.embeds?.[0].data?.title?.includes("실패")
   ) {
     if (!mapGambledCount[response?.interaction?.user?.id]) {
@@ -737,7 +755,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     await response.reply({
       embeds: [
         new EmbedBuilder()
-          .setTitle("🚨도박 실패")
+          .setTitle("🚨 도박 실패")
           .setDescription("도박 상담전화 - 국번없이 1336")
           .setFields([
             {
