@@ -10,10 +10,11 @@ const {
   Routes,
   Collection,
   EmbedBuilder,
-  CommandInteraction,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
+  Message,
 } = require("discord.js");
 const dotenv = require("dotenv");
 const { Configuration, OpenAIApi } = require("openai");
@@ -31,7 +32,14 @@ const clientId = process.env.DISCORD_CLIENT_ID;
 const PPOMPPU_BASE_URL = "https://www.ppomppu.co.kr/zboard/";
 
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+  ],
+});
 
 const openai = new OpenAIApi(
   new Configuration({ apiKey: process.env.OPENAI_API_KEY })
@@ -371,6 +379,27 @@ const commands = [
   },
   {
     data: new SlashCommandBuilder()
+      .setName("도박주의")
+      .setDescription("도박을 주의합시다."),
+    async execute(interaction) {
+      const attatchment = new AttachmentBuilder("./images/gambling.webp", {
+        name: "gambling.webp",
+      });
+
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("🚨도박 주의")
+            .setColor(0xff0000)
+            .setDescription("도박 상담전화 - 국번없이 1336")
+            .setImage("attachment://gambling.webp"),
+        ],
+        files: [attatchment],
+      });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
       .setName("파티모집")
       .setDescription("파티원을 모집합니다.")
       .addStringOption((option) =>
@@ -685,6 +714,42 @@ const rest = new REST({ version: "10" }).setToken(token);
 
 rest.put(Routes.applicationCommands(clientId), {
   body: commands.map((command) => command.data.toJSON()),
+});
+
+const mapGambledCount = {};
+
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+  const response = await newMessage.fetch();
+
+  if (!response.embeds?.[0].data?.title) return;
+
+  if (
+    response.embeds?.[0].data?.title?.includes("도박") &&
+    response.embeds?.[0].data?.title?.includes("실패")
+  ) {
+    if (!mapGambledCount[response?.interaction?.user?.id]) {
+      mapGambledCount[response.interaction.user.id] = 0;
+    }
+    mapGambledCount[response.interaction.user.id] += 1;
+
+    console.log("도박 실패 fired");
+    console.log(response);
+    await response.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("🚨도박 실패")
+          .setDescription("도박 상담전화 - 국번없이 1336")
+          .setFields([
+            {
+              name: `${bold(
+                response.interaction.user.username
+              )} 님의 누적 실패 횟수`,
+              value: `${mapGambledCount[response.interaction.user.id]}회`,
+            },
+          ]),
+      ],
+    });
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
