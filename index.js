@@ -65,8 +65,8 @@ const makePpomppuTopMessage = async () => {
   const itemsParsed = [];
 
   for (const item of [
-    ...document.getElementsByClassName("list1"),
-    ...document.getElementsByClassName("list0"),
+    ...document.getElementsByClassName("common-list1"),
+    ...document.getElementsByClassName("common-list0"),
   ]) {
     try {
       const idText = String(
@@ -373,8 +373,9 @@ const commands = [
       .setName("뽐뿌")
       .setDescription("현재 뽐뿌에서 인기있는 할인 정보를 확인합니다."),
     async execute(interaction) {
+      const response = await interaction.deferReply();
       const embed = await makePpomppuTopMessage();
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     },
   },
   {
