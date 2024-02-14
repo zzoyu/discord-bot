@@ -131,25 +131,23 @@ const makeNintendoSaleMessage = async () => {
   });
   const buffer = new Buffer.from(response.data, "binary");
 
-  const document = new JSDOM(iconv.decode(buffer, "euc-kr").toString()).window
+  const document = new JSDOM(iconv.decode(buffer, "utf-8").toString()).window
     .document;
 
   const itemsParsed = [];
 
   for (const item of [
-    ...document
-      .getElementsByClassName("category-product-item-info")
-      .slice(0, 10),
-  ]) {
+    ...document.getElementsByClassName("category-product-item-info"),
+  ].slice(0, 10)) {
     try {
-      const [saledPrice, originalPrice] = item
-        .getElementsByClassName("price")
-        .map((price) => parseInt(price?.textContent));
+      const [saledPrice, originalPrice] = [
+        ...item.getElementsByClassName("price"),
+      ].map((price) => Number(price.textContent.replace(/[^0-9]/g, "")));
       if (saledPrice === undefined || originalPrice === undefined) continue;
 
-      const titleElement = item.getElementsByClassName(
-        "category-product-item-title"
-      )?.[0]?.children?.[0];
+      const titleElement = [
+        ...item.getElementsByClassName("category-product-item-title"),
+      ]?.[0]?.children?.[0];
       if (titleElement === undefined) continue;
 
       const title = titleElement?.textContent;
@@ -182,7 +180,13 @@ const makeNintendoSaleMessage = async () => {
     exampleEmbed.addFields({
       name: game.title,
       value:
-        bold(`[${Number(game.saledPrice / game.originalPrice) * 100}%]`) +
+        bold(
+          `[${
+            Number(
+              (game.originalPrice - game.saledPrice) / game.originalPrice
+            ) * 100
+          }%]`
+        ) +
         ` ${strikethrough(
           game.originalPrice.toLocaleString("ko")
         )}원 :point_right: ${game.saledPrice.toLocaleString("ko")}원\n${
@@ -518,6 +522,100 @@ const commands = [
         title: interaction.options.getString("목표"),
         userIdList: [interaction.user.id],
       };
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("물온도")
+      .setDescription("한강 물온도를 알려드립니다."),
+    async execute(interaction) {
+      await interaction.deferReply();
+      const formData = new FormData();
+      /*
+       -H 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8'
+-H 'Accept: application/json, text/javascript,; q=0.01'
+-H 'Sec-Fetch-Site: same-origin'
+-H 'Accept-Language: ko-KR,ko;q=0.9'
+-H 'Accept-Encoding: gzip, deflate, br'
+-H 'Sec-Fetch-Mode: cors'
+-H 'Host: www.water.or.kr'
+-H 'Origin: https://www.water.or.kr'
+-H 'Content-Length: 36'
+-H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15'
+-H 'Referer: https://www.water.or.kr/kor/realtime/sangsudo/index.do?mode=rinfo&menuId=13_91_107_108' \
+-H 'Connection: keep-alive'
+-H 'Cookie: _ga_W51MNH3EEL=GS1.1.1707903026.1.1.1707903105.45.0.0; _ga=GA1.1.4260811.1707903026; JSESSIONID=7alFePcFUq6xUE2a3RzmTXzYgJJAh7dVZtFs7Bu9aQDp9wpbnFy2q5axrtApGd54.bndhdGVyL215d2F0ZXIx; WMONID=Do6Pxzd9O-z; kor_visited=ok'
+-H 'Sec-Fetch-Dest: empty'
+-H 'AJAX: true'
+-H 'X-Requested-With: XMLHttpRequest'
+      --data 'mode=getAjaxRinfo&realTimeCode=Ax001'
+       */
+
+      formData.append("mode", "getAjaxRinfo");
+      formData.append("realTimeCode", "Ax001");
+
+      const response = await axios.post(
+        process.env.HANGANG_TEMP_API_URL,
+        formData,
+        {
+          headers: {
+            referer:
+              "https://www.water.or.kr/kor/realtime/sangsudo/index.do?mode=rinfo&menuId=13_91_107_108",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            Accept: "application/json, text/javascript,; q=0.01",
+            "Sec-Fetch-Site": "same-origin",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Sec-Fetch-Mode": "cors",
+            Host: "www.water.or.kr",
+            Origin: "https://www.water.or.kr",
+            "Content-Length": "36",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15",
+            Connection: "keep-alive",
+          },
+        }
+      );
+
+      const temp = Number(response?.data?.list?.[0]?.WT_VU);
+      console.log(temp, response?.data?.list?.[0]?.WT_VU);
+      if (Number.isNaN(temp)) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x0099ff)
+              .setTitle("한강 물온도")
+              .setDescription("현재 물 온도를 확인할 수 없습니다."),
+          ],
+        });
+        return;
+      }
+
+      let emoji = "🥶";
+
+      switch (true) {
+        case temp > 20:
+          emoji = "😘";
+          break;
+        case temp > 15:
+          emoji = "🥵";
+          break;
+        case temp > 10:
+          emoji = "🤧";
+          break;
+        default:
+          emoji = "🥶";
+          break;
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle(`한강 물온도 ${temp}도 ${emoji}`)
+        .setFooter({
+          text: response?.data?.list?.[0]?.SDATE + " 기준",
+        });
+
+      await interaction.editReply({ embeds: [embed] });
     },
   },
   {
@@ -861,22 +959,36 @@ client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
     console.log("도박 실패 fired");
 
     try {
+      const lostEmbed = new EmbedBuilder()
+        .setTitle("🚨 도박 실패")
+        .setDescription("도박 상담전화 - 국번없이 1336")
+        .setFields([
+          {
+            name: `${bold(
+              response.interaction.user.username
+            )} 님의 누적 실패 횟수`,
+            value: `${mapGambledCount[response.interaction.user.id].count}회`,
+          },
+        ]);
+
+      const attatchment = new AttachmentBuilder("./images/lost.png", {
+        name: "lost.png",
+      });
+
+      const currentMoney = response.embeds[0].data?.footer?.text
+        ?.match(/[\d,]+/g)
+        ?.map((num) => num.replace(/,/g, ""));
+
+      const isBankrupt = Number(currentMoney?.[0] || 0) === 0;
+
+      if (isBankrupt) {
+        lostEmbed.setColor(0xff0000);
+        lostEmbed.setImage("attachment://lost.png");
+      }
+
       const lastMessage = await response.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("🚨 도박 실패")
-            .setDescription("도박 상담전화 - 국번없이 1336")
-            .setFields([
-              {
-                name: `${bold(
-                  response.interaction.user.username
-                )} 님의 누적 실패 횟수`,
-                value: `${
-                  mapGambledCount[response.interaction.user.id].count
-                }회`,
-              },
-            ]),
-        ],
+        embeds: [lostEmbed],
+        files: isBankrupt ? [attatchment] : undefined,
       });
 
       if (
