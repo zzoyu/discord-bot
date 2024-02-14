@@ -809,8 +809,9 @@ const commands = [
       .setName("닌텐도")
       .setDescription("닌텐도 온라인 스토어 할인 정보를 확인합니다."),
     async execute(interaction) {
+      await interaction.deferReply();
       const embed = await makeNintendoSaleMessage();
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     },
   },
   {
@@ -818,8 +819,9 @@ const commands = [
       .setName("스팀")
       .setDescription("오늘의 인기 스팀 할인 정보를 확인합니다."),
     async execute(interaction) {
+      await interaction.deferReply();
       const embed = await makeSteamSaleMessage();
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     },
   },
   {
