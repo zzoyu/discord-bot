@@ -382,19 +382,35 @@ const commands = [
       .setName("도박주의")
       .setDescription("도박을 주의합시다."),
     async execute(interaction) {
+      const message = new EmbedBuilder()
+        .setTitle("🚨도박 주의")
+        .setColor(0x00ff00)
+        .setDescription("도박 상담전화 - 국번없이 1336")
+        .setFields([
+          {
+            name: `${bold(interaction.user.username)} 님의 누적 실패 횟수`,
+            value: `${mapGambledCount[interaction.user.id]?.count || 0}회`,
+          },
+          {
+            name: `${bold(interaction.user.username)} 님의 누적 수익`,
+            value: `${mapGambledCount[interaction.user.id]?.wonMoney || 0}₩`,
+          },
+        ]);
+
       const attatchment = new AttachmentBuilder("./images/gambling.webp", {
         name: "gambling.webp",
       });
 
+      const isWarned = mapGambledCount[interaction.user.id]?.count >= 10;
+
+      if (isWarned) {
+        message.setColor(0xff0000);
+        message.setImage("attachment://gambling.webp");
+      }
+
       await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("🚨도박 주의")
-            .setColor(0xff0000)
-            .setDescription("도박 상담전화 - 국번없이 1336")
-            .setImage("attachment://gambling.webp"),
-        ],
-        files: [attatchment],
+        embeds: [message],
+        files: isWarned ? [attatchment] : undefined,
       });
     },
   },
@@ -718,20 +734,34 @@ rest.put(Routes.applicationCommands(clientId), {
 
 const mapGambledCount = {};
 
-client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
   const response = await newMessage.fetch();
 
-  if (!response.embeds?.[0].data?.title) return;
+  if (!response.embeds?.[0]?.data?.title) return;
+  if (!response.embeds?.[0].data?.title?.includes("도박")) return;
+
+  const result = response.embeds?.[0].data?.description
+    ?.match(/[\d,]+/g)
+    ?.map((num) => num.replace(/,/g, ""));
+  if (!result) return;
+  if ((result?.length || 0) < 2) return;
+
+  const wonMoney = Number(result[1]);
+  const percentage = Number(result[0]);
+
+  if (!mapGambledCount[response?.interaction?.user?.id]) {
+    mapGambledCount[response.interaction.user.id] = {
+      lastMessage: undefined,
+      wonMoney: 0,
+      count: 0,
+    };
+  }
 
   if (
     response.embeds?.[0].data?.title?.includes("도박") &&
     response.embeds?.[0].data?.title?.includes("성공")
   ) {
-    // extract number from "승리 확률 : 29%\n\n결과 : + 5,000₩" in the response.embeds?.[0].data?.description
-    const result = response.embeds?.[0].data?.description?.match(/\d+/g);
-    if (result === null) return;
-    const wonMoney = Number(result[1]);
-    const percentage = Number(result[0]);
+    mapGambledCount[response.interaction.user.id].wonMoney += wonMoney;
 
     if (percentage < 40) {
       await response.reply({
@@ -745,28 +775,41 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     response.embeds?.[0].data?.title?.includes("도박") &&
     response.embeds?.[0].data?.title?.includes("실패")
   ) {
-    if (!mapGambledCount[response?.interaction?.user?.id]) {
-      mapGambledCount[response.interaction.user.id] = 0;
-    }
-    mapGambledCount[response.interaction.user.id] += 1;
+    mapGambledCount[response.interaction.user.id].count += 1;
+    mapGambledCount[response.interaction.user.id].wonMoney -= wonMoney;
 
     console.log("도박 실패 fired");
-    console.log(response);
-    await response.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🚨 도박 실패")
-          .setDescription("도박 상담전화 - 국번없이 1336")
-          .setFields([
-            {
-              name: `${bold(
-                response.interaction.user.username
-              )} 님의 누적 실패 횟수`,
-              value: `${mapGambledCount[response.interaction.user.id]}회`,
-            },
-          ]),
-      ],
-    });
+
+    try {
+      const lastMessage = await response.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("🚨 도박 실패")
+            .setDescription("도박 상담전화 - 국번없이 1336")
+            .setFields([
+              {
+                name: `${bold(
+                  response.interaction.user.username
+                )} 님의 누적 실패 횟수`,
+                value: `${
+                  mapGambledCount[response.interaction.user.id].count
+                }회`,
+              },
+            ]),
+        ],
+      });
+
+      if (
+        lastMessage &&
+        mapGambledCount[response.interaction.user.id]?.lastMessage
+      ) {
+        mapGambledCount[response.interaction.user.id].lastMessage.delete();
+      }
+
+      mapGambledCount[response.interaction.user.id].lastMessage = lastMessage;
+    } catch (error) {
+      console.error(error);
+    }
   }
 });
 
