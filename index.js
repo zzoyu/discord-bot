@@ -124,6 +124,76 @@ const makePpomppuTopMessage = async () => {
   return exampleEmbed;
 };
 
+const makeNintendoSaleMessage = async () => {
+  const response = await axios.get(process.env.NINTENDO_STORE_CRAWLING_URL, {
+    responseType: "arraybuffer",
+    responseEncoding: "binary",
+  });
+  const buffer = new Buffer.from(response.data, "binary");
+
+  const document = new JSDOM(iconv.decode(buffer, "euc-kr").toString()).window
+    .document;
+
+  const itemsParsed = [];
+
+  for (const item of [
+    ...document
+      .getElementsByClassName("category-product-item-info")
+      .slice(0, 10),
+  ]) {
+    try {
+      const [saledPrice, originalPrice] = item
+        .getElementsByClassName("price")
+        .map((price) => parseInt(price?.textContent));
+      if (saledPrice === undefined || originalPrice === undefined) continue;
+
+      const titleElement = item.getElementsByClassName(
+        "category-product-item-title"
+      )?.[0]?.children?.[0];
+      if (titleElement === undefined) continue;
+
+      const title = titleElement?.textContent;
+      if (title === undefined) continue;
+
+      const url = titleElement?.href;
+      if (title === undefined) continue;
+
+      itemsParsed.push({
+        title,
+        url,
+        saledPrice,
+        originalPrice,
+      });
+    } catch (error) {
+      console.error(error);
+      continue;
+    }
+  }
+
+  const today = new Date();
+
+  const exampleEmbed = new EmbedBuilder()
+    .setColor(0x0099ff)
+    .setTitle("닌텐도 스토어 할인 정보")
+    .setDescription("공식 사이트 세일 정보입니다.")
+    .setTimestamp();
+
+  for (const game of itemsParsed) {
+    exampleEmbed.addFields({
+      name: game.title,
+      value:
+        bold(`[${Number(game.saledPrice / game.originalPrice) * 100}%]`) +
+        ` ${strikethrough(
+          game.originalPrice.toLocaleString("ko")
+        )}원 :point_right: ${game.saledPrice.toLocaleString("ko")}원\n${
+          game.url
+        }`,
+    });
+  }
+
+  return exampleEmbed;
+};
+
 const makePartyMessage = (interaction) => {
   const exampleEmbed = new EmbedBuilder()
     .setColor(0x0099ff)
@@ -634,6 +704,15 @@ const commands = [
       await interaction.followUp({
         embeds: [winnerEmbed],
       });
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName("닌텐도")
+      .setDescription("닌텐도 온라인 스토어 할인 정보를 확인합니다."),
+    async execute(interaction) {
+      const embed = await makeNintendoSaleMessage();
+      await interaction.reply({ embeds: [embed] });
     },
   },
   {
