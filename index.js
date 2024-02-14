@@ -301,8 +301,18 @@ const makeSteamSaleMessage = async () => {
   // console.log(channel);
 
   const response = await Promise.all([
-    await axios.get(process.env.STEAM_API_URL + "?page=1&size=5"),
-    await axios.get(process.env.STEAM_API_URL + "?page=2&size=5"),
+    await axios.get(process.env.STEAM_API_URL + "?page=1&size=5", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+      },
+    }),
+    await axios.get(process.env.STEAM_API_URL + "?page=2&size=5", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+      },
+    }),
   ]);
 
   const today = new Date();
