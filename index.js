@@ -821,14 +821,11 @@ const commands = [
           return { x, y };
         });
 
-        const ladderLineCount = (candidates.length - 1) * 10;
         const range = 20;
         const maxIndex = candidates.length - 1;
 
         const lastY = [];
-
         const ladderLines = [];
-        const ladderMap = [];
 
         for (let i = 0; i < maxIndex; i++) {
           lastY.push(Math.round(Math.random() * 30 + 70));
@@ -940,20 +937,12 @@ const commands = [
             16
           )}`;
           _ctx.strokeStyle = winnerColor;
-          // draw line on top, more bold
           _ctx.lineWidth = 3;
-          // _ctx.moveTo(ladder[winnerIndex].x, currentY);
-          // currentY = graph[winnerIndex][graph[winnerIndex].length - 1].fromY;
-          // _ctx.lineTo(ladder[winnerIndex].x, currentY);
 
           let currentIndex = winnerIndex;
 
           graph.forEach((line) => {
             return line.sort((a, b) => b.fromY - a.fromY);
-          });
-
-          graph.map((line) => {
-            console.log(line);
           });
 
           while (currentY > 70) {
