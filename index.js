@@ -758,60 +758,250 @@ const commands = [
       .setName("사다리")
       .setDescription("사다리타기 입니다.")
       .addIntegerOption((option) =>
-        option.setName("당첨수").setDescription("당첨 인원을 적어주세요.")
+        option
+          .setName("당첨수")
+          .setDescription("당첨 인원을 적어주세요.")
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName("목록")
+          .setDescription("참가자 목록을 적어주세요.")
+          .setRequired(true)
       ),
-    // .addSubcommand((subcommand) =>
-    //   subcommand
-    //     .setName("추첨")
-    //     .setDescription("사다리타기를 시작합니다.")
-    //     .addUserOption((option) =>
-    //       option.setName("참가자").setDescription("The user")
-    //     )
-    // )
     async execute(interaction) {
       console.log(interaction);
-      const embed = new EmbedBuilder()
-        .setColor(0x0099ff)
-        .setTitle("죽음의 사다리타기")
-        .setFields([
-          {
-            name: "참가자",
-            value: interaction.options.getString("목록"),
-          },
-          {
-            name: "당첨 인원",
-            value: interaction.options.getInteger("당첨 인원"),
-          },
-        ]);
+      const response = await interaction.deferReply();
+      // sleep for 10 ms;
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const response = await interaction.reply({
-        embeds: [embed],
-      });
+      const { createCanvas, registerFont } = require("canvas");
 
-      response.followUp(
-        "사다리타기를 시작합니다. (10초 후에 결과가 나옵니다.)"
-      );
+      // registerFont("assets/AppleColorEmoji.ttf", {
+      //   family: "Apple Color Emoji",
+      // });
+
+      const canvas = new createCanvas(400, 400);
+
+      const ctx = canvas.getContext("2d");
+
+      ctx.font = "20px 'Apple Color Emoji'";
+
+      ctx.fillStyle = "white";
+
+      ctx.fillRect(0, 0, 400, 400);
+      ctx.fillStyle = "black";
+
+      // set alignment-baseline to baseline
+      ctx.textBaseline = "top";
+
+      // set text-anchor to middle
+      ctx.textAlign = "center";
 
       const list = interaction.options.getString("목록").split(" ");
+
       const winnerCount = interaction.options.getInteger("당첨수");
 
-      const winnerList = [];
+      const winners = new Array(list.length);
+
       for (let i = 0; i < winnerCount; i++) {
-        const winner = list[Math.floor(Math.random() * list.length)];
-        winnerList.push(winner);
-        list.splice(list.indexOf(winner), 1);
+        let randomIndex = Math.floor(Math.random() * list.length);
+        while (winners[randomIndex] !== undefined) {
+          randomIndex = Math.floor(Math.random() * list.length);
+        }
+        winners[randomIndex] = "당첨";
       }
 
-      const winnerEmbed = new EmbedBuilder()
-        .setColor(0x0099ff)
-        .setTitle("당첨자 발표")
-        .setDescription(
-          `${winnerList.map((id) => `<@${id}>`).join(" ")} 축하합니다!`
-        );
+      const width = (400 - 100) / (list.length - 1);
 
-      await interaction.followUp({
-        embeds: [winnerEmbed],
+      const drawLadderBase = (_ctx, candidates, results) => {
+        const ladder = candidates.map((name, index) => {
+          const x = 50 + index * width;
+          const y = 30;
+          return { x, y };
+        });
+
+        const ladderLineCount = (candidates.length - 1) * 10;
+        const range = 20;
+        const maxIndex = candidates.length - 1;
+
+        const lastY = [];
+
+        const ladderLines = [];
+        const ladderMap = [];
+
+        for (let i = 0; i < maxIndex; i++) {
+          lastY.push(Math.round(Math.random() * 30 + 70));
+        }
+
+        let i = 0;
+        while (i < maxIndex) {
+          const randomIndex = i;
+          // const randomIndex = Math.floor(Math.random() * maxIndex);
+
+          if (lastY[randomIndex] > 300) {
+            i++;
+            continue;
+          }
+          const randomVector = Math.random() > 0.5 ? 1 : -1;
+
+          let toY = 0;
+
+          if (randomVector < 0) {
+            toY = lastY[randomIndex];
+            lastY[randomIndex] = Math.min(
+              lastY[randomIndex] + Math.floor(Math.random() * range),
+              300
+            );
+          } else {
+            toY = Math.min(
+              lastY[randomIndex] + Math.floor(Math.random() * range),
+              300
+            );
+          }
+
+          ladderLines.push({
+            index: randomIndex,
+            y: lastY[randomIndex],
+            toY,
+          });
+          lastY[randomIndex] = randomVector > 0 ? toY : lastY[randomIndex];
+
+          lastY[randomIndex] += 10;
+
+          console.log(lastY);
+        }
+
+        _ctx.beginPath();
+
+        ladder.forEach((point) => {
+          _ctx.moveTo(point.x, point.y + 310);
+          _ctx.lineTo(point.x, point.y + 30);
+
+          candidates.map((name, index) => {
+            const x = 50 + index * width;
+            const y = 350;
+
+            if (results[index] === "당첨") {
+              _ctx.fillStyle = "red";
+            } else {
+              _ctx.fillStyle = "black";
+            }
+
+            _ctx.fillText(results[index] || "꽝", x, y + 10);
+
+            return { x, y };
+          });
+        });
+
+        const graph = [];
+        for (let j = 0; j < candidates.length; j++) {
+          graph.push([]);
+        }
+
+        console.log(graph);
+        ladderLines.map((line) => {
+          graph[line.index].push({
+            from: line.index,
+            to: line.index + 1,
+            fromY: line.y,
+            toY: line.toY,
+          });
+          graph[line.index + 1].push({
+            from: line.index + 1,
+            to: line.index,
+            fromY: line.toY,
+            toY: line.y,
+          });
+        });
+
+        ladderLines.forEach((line) => {
+          _ctx.moveTo(ladder[line.index].x, line.y);
+          _ctx.lineTo(ladder[line.index + 1].x, line.toY);
+        });
+
+        _ctx.stroke();
+
+        const paths = [];
+
+        const winnerIndexes = [];
+        winners.forEach((winner, index) => {
+          if (winner === "당첨") {
+            winnerIndexes.push(index);
+          }
+        });
+
+        winnerIndexes.forEach((winnerIndex) => {
+          let currentY = 340;
+
+          _ctx.beginPath();
+          // change line color to random color
+          const winnerColor = `#${Math.floor(Math.random() * 16777215).toString(
+            16
+          )}`;
+          _ctx.strokeStyle = winnerColor;
+          // draw line on top, more bold
+          _ctx.lineWidth = 3;
+          // _ctx.moveTo(ladder[winnerIndex].x, currentY);
+          // currentY = graph[winnerIndex][graph[winnerIndex].length - 1].fromY;
+          // _ctx.lineTo(ladder[winnerIndex].x, currentY);
+
+          let currentIndex = winnerIndex;
+
+          graph.forEach((line) => {
+            return line.sort((a, b) => b.fromY - a.fromY);
+          });
+
+          graph.map((line) => {
+            console.log(line);
+          });
+
+          while (currentY > 70) {
+            const nextItem = graph[currentIndex].find(
+              (line) => line.fromY < currentY
+            );
+            if (nextItem === undefined) {
+              break;
+            }
+            console.log(nextItem);
+            _ctx.moveTo(ladder[nextItem.from].x, currentY);
+            _ctx.lineTo(ladder[nextItem.from].x, nextItem.fromY);
+            _ctx.lineTo(ladder[nextItem.to].x, nextItem.toY);
+            currentY = nextItem.toY;
+            currentIndex = nextItem.to;
+          }
+          _ctx.lineTo(ladder[currentIndex].x, 60);
+
+          _ctx.stroke();
+          ladder[currentIndex].color = winnerColor;
+
+          candidates.map((name, index) => {
+            const x = 50 + index * width;
+            const y = 30;
+            _ctx.fillStyle = ladder[index].color || "black";
+            _ctx.fillText(name, x, y);
+          });
+        });
+      };
+
+      drawLadderBase(ctx, list, winners);
+
+      const attatchment = new AttachmentBuilder(canvas.toBuffer(), {
+        name: "ladder.png",
       });
+
+      console.log(winnerCount, winners, list);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle("절망의 사다리타기")
+        .setDescription(
+          "사다리타기를 시작합니다. (10초 후에도 결과가 나오지 않습니다.)"
+        )
+        .setImage("attachment://ladder.png")
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [embed], files: [attatchment] });
     },
   },
   {
@@ -980,6 +1170,12 @@ client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
               response.interaction.user.username
             )} 님의 누적 실패 횟수`,
             value: `${mapGambledCount[response.interaction.user.id].count}회`,
+          },
+          {
+            name: `${bold(response.interaction.user.username)} 님의 누적 수익`,
+            value: `${
+              mapGambledCount[response.interaction.user.id]?.wonMoney || 0
+            }₩`,
           },
         ]);
 
