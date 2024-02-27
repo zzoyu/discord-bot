@@ -818,6 +818,7 @@ const commands = [
         const ladder = candidates.map((name, index) => {
           const x = 50 + index * width;
           const y = 30;
+          _ctx.fillText(name, x, y);
           return { x, y };
         });
 
@@ -896,7 +897,6 @@ const commands = [
           graph.push([]);
         }
 
-        console.log(graph);
         ladderLines.map((line) => {
           graph[line.index].push({
             from: line.index,
@@ -922,16 +922,22 @@ const commands = [
         const paths = [];
 
         const winnerIndexes = [];
+        let currentEdgeCount = 0;
+        const snapshots = [];
+
         winners.forEach((winner, index) => {
           if (winner === "당첨") {
             winnerIndexes.push(index);
           }
         });
 
+        snapshots.push(canvas.toBuffer());
+
+        let currentPassedEdgeCount = 0;
+
         winnerIndexes.forEach((winnerIndex) => {
           let currentY = 340;
 
-          _ctx.beginPath();
           // change line color to random color
           const winnerColor = `#${Math.floor(Math.random() * 16777215).toString(
             16
@@ -946,6 +952,10 @@ const commands = [
           });
 
           while (currentY > 70) {
+            if (currentPassedEdgeCount % 5 === 0) {
+              snapshots.push(canvas.toBuffer());
+            }
+            currentPassedEdgeCount++;
             const nextItem = graph[currentIndex].find(
               (line) => line.fromY < currentY
             );
@@ -953,44 +963,65 @@ const commands = [
               break;
             }
             console.log(nextItem);
+            _ctx.beginPath();
             _ctx.moveTo(ladder[nextItem.from].x, currentY);
             _ctx.lineTo(ladder[nextItem.from].x, nextItem.fromY);
             _ctx.lineTo(ladder[nextItem.to].x, nextItem.toY);
             currentY = nextItem.toY;
             currentIndex = nextItem.to;
+            _ctx.stroke();
           }
           _ctx.lineTo(ladder[currentIndex].x, 60);
-
           _ctx.stroke();
           ladder[currentIndex].color = winnerColor;
 
-          candidates.map((name, index) => {
-            const x = 50 + index * width;
-            const y = 30;
-            _ctx.fillStyle = ladder[index].color || "black";
-            _ctx.fillText(name, x, y);
-          });
+          const x = 50 + currentIndex * width;
+          const y = 30;
+          _ctx.fillStyle = winnerColor;
+          _ctx.fillText(candidates[currentIndex], x, y);
+
+          snapshots.push(canvas.toBuffer());
         });
+        return snapshots;
       };
 
-      drawLadderBase(ctx, list, winners);
+      const snapshots = drawLadderBase(ctx, list, winners);
 
-      const attatchment = new AttachmentBuilder(canvas.toBuffer(), {
-        name: "ladder.png",
+      await snapshots.forEach(async (snapshot, index) => {
+        const attatchment = new AttachmentBuilder(snapshot, {
+          name: `ladder_${index}.png`,
+        });
+        const embed = new EmbedBuilder()
+          .setColor(0x0099ff)
+          .setTitle(`절망의 사다리타기 (${index + 1}/${snapshots.length})`)
+          .setDescription("사다리타기를 진행중입니다.")
+          .setImage(`attachment://ladder_${index}.png`)
+          .setTimestamp();
+
+        setTimeout(async () => {
+          await interaction.editReply({
+            embeds: [embed],
+            files: [attatchment],
+          });
+        }, 1000 * index);
       });
 
-      console.log(winnerCount, winners, list);
+      // set timer to after 3 seconds * snapshots.length
+      // and editReply to the final result
+      setTimeout(async () => {
+        const attatchment = new AttachmentBuilder(canvas.toBuffer(), {
+          name: "ladder.png",
+        });
 
-      const embed = new EmbedBuilder()
-        .setColor(0x0099ff)
-        .setTitle("절망의 사다리타기")
-        .setDescription(
-          "사다리타기를 시작합니다. (10초 후에도 결과가 나오지 않습니다.)"
-        )
-        .setImage("attachment://ladder.png")
-        .setTimestamp();
+        const embed = new EmbedBuilder()
+          .setColor(0x0099ff)
+          .setTitle("절망의 사다리타기")
+          .setDescription("사다리타기를 완료했습니다.")
+          .setImage("attachment://ladder.png")
+          .setTimestamp();
 
-      await interaction.editReply({ embeds: [embed], files: [attatchment] });
+        await interaction.editReply({ embeds: [embed], files: [attatchment] });
+      }, 1000 * snapshots.length);
     },
   },
   {
